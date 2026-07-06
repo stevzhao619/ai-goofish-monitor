@@ -562,7 +562,25 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
 
             launch_kwargs = {"headless": RUN_HEADLESS, "args": launch_args}
             if proxy_server:
-                launch_kwargs["proxy"] = {"server": proxy_server}
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(proxy_server)
+                    if parsed.username or parsed.password:
+                        netloc = parsed.hostname
+                        if parsed.port:
+                            netloc = f"{netloc}:{parsed.port}"
+                        server_url = f"{parsed.scheme}://{netloc}"
+                        proxy_dict = {"server": server_url}
+                        if parsed.username:
+                            proxy_dict["username"] = parsed.username
+                        if parsed.password:
+                            proxy_dict["password"] = parsed.password
+                        launch_kwargs["proxy"] = proxy_dict
+                    else:
+                        launch_kwargs["proxy"] = {"server": proxy_server}
+                except Exception as e:
+                    print(f"解析代理地址失败 {proxy_server}: {e}，将直接传递给 Playwright")
+                    launch_kwargs["proxy"] = {"server": proxy_server}
 
             launch_kwargs["channel"] = _resolve_browser_channel()
 
@@ -655,19 +673,30 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
                 log_time(f"目标URL: {search_url}")
 
                 # 先监听搜索接口响应，再执行导航，避免错过首次请求
-                async with page.expect_response(
-                    is_search_results_response, timeout=30000
-                ) as initial_response_info:
-                    await page.goto(
-                        search_url, wait_until="domcontentloaded", timeout=60000
-                    )
+                try:
+                    async with page.expect_response(
+                        is_search_results_response, timeout=30000
+                    ) as initial_response_info:
+                        await page.goto(
+                            search_url, wait_until="domcontentloaded", timeout=60000
+                        )
+                    initial_response = await initial_response_info.value
+                except PlaywrightTimeoutError as e:
+                    if _is_login_url(page.url):
+                        raise LoginRequiredError(
+                            f"Login required: redirected to {page.url} (cookies/state likely expired)"
+                        ) from e
+                    elif "punish" in page.url or "ncvalidate" in page.url or "heco" in page.url:
+                        raise RiskControlError(
+                            f"Wind control / Captcha detected: redirected to {page.url}"
+                        ) from e
+                    else:
+                        raise
+
                 if _is_login_url(page.url):
                     raise LoginRequiredError(
                         f"Login required: redirected to {page.url} (cookies/state likely expired)"
                     )
-
-                # 捕获初始搜索的API数据
-                initial_response = await initial_response_info.value
 
                 # 等待页面加载出关键筛选元素，以确认已成功进入搜索结果页
                 try:

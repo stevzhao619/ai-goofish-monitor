@@ -51,6 +51,30 @@ def test_task_apply_update():
     assert updated.task_name == task.task_name
 
 
+def test_task_apply_update_pops_regenerate_criteria():
+    task = Task(
+        id=1,
+        task_name="Sony A7M4",
+        enabled=True,
+        keyword="sony a7m4",
+        description="body",
+        max_pages=2,
+        personal_only=True,
+        min_price=None,
+        max_price=None,
+        cron=None,
+        ai_prompt_base_file="prompts/base_prompt.txt",
+        ai_prompt_criteria_file="prompts/sony_a7m4_criteria.txt",
+        is_running=False,
+    )
+
+    update = TaskUpdate(regenerate_criteria=True, max_pages=4)
+    updated = task.apply_update(update)
+
+    assert updated.max_pages == 4
+    assert not hasattr(updated, "regenerate_criteria")
+
+
 def test_legacy_keyword_groups_are_flattened_to_keyword_rules():
     task = Task(
         id=1,

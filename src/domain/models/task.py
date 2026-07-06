@@ -152,6 +152,7 @@ class Task(BaseModel):
     def apply_update(self, update: "TaskUpdate") -> "Task":
         """应用更新并返回新的任务实例"""
         update_data = update.model_dump(exclude_unset=True)
+        update_data.pop("regenerate_criteria", None)
         return self.model_copy(update=update_data)
 
 
@@ -247,6 +248,7 @@ class TaskUpdate(BaseModel):
     decision_mode: Optional[Literal["ai", "keyword"]] = None
     keyword_rules: Optional[List[str]] = None
     is_running: Optional[bool] = None
+    regenerate_criteria: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod

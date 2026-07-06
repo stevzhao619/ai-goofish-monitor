@@ -158,6 +158,7 @@ async def update_task(
             and task_update.description != existing_task.description
         )
         switched_to_ai = current_mode != "ai" and target_mode == "ai"
+        force_regenerate = task_update.regenerate_criteria is True
 
         if target_mode == "keyword":
             final_rules = (
@@ -167,7 +168,7 @@ async def update_task(
             )
             if not _has_keyword_rules(final_rules):
                 raise HTTPException(status_code=400, detail="关键词模式下至少需要一个关键词。")
-        if target_mode == "ai" and (description_changed or switched_to_ai):
+        if target_mode == "ai" and (description_changed or switched_to_ai or force_regenerate):
             print(f"检测到任务 {task_id} 需要刷新 AI 标准文件，开始重新生成...")
             try:
                 description_for_ai = (

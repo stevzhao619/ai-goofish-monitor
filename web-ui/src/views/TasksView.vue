@@ -135,7 +135,10 @@ async function handleRefreshCriteria() {
 
   isCriteriaSubmitting.value = true
   try {
-    await updateTask(criteriaTask.value.id, { description: criteriaDescription.value })
+    await updateTask(criteriaTask.value.id, {
+      description: criteriaDescription.value,
+      regenerate_criteria: true,
+    })
     isCriteriaDialogOpen.value = false
   } catch (e) {
     toast({
